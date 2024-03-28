@@ -5,7 +5,7 @@ from matplotlib.figure import Figure
 from pythonping import ping
 import threading
 import queue
-import datetime  # Used for generating a unique filename
+import datetime
 
 # Function to perform ping in a separate thread
 def ping_thread(ip, stop_event):
@@ -45,31 +45,50 @@ class PingApplication(tk.Tk):
         self.title("Ping Monitor")
         self.geometry("800x600")
 
-        self.ip_entry = tk.Entry(self, width=50)
-        self.ip_entry.pack(pady=20)
+        # PanedWindow for resizable split window effect
+        self.paned_window = tk.PanedWindow(self, orient=tk.VERTICAL, sashrelief=tk.RAISED)
+        self.paned_window.pack(fill=tk.BOTH, expand=1)
 
-        self.start_button = ttk.Button(self, text="Start Pinging", command=self.start)
-        self.start_button.pack(pady=10)
+        # Top frame for the text input area for the IPs
+        self.top_frame = tk.Frame(self.paned_window)
+        self.ip_text = tk.Text(self.top_frame, height=10, width=50)  # Changed to use Text widget
+        self.ip_text.pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.BOTH)
+        self.ip_text.bind('<Return>', self.insert_newline)  # Bind Return key to insert_newline function
+        self.paned_window.add(self.top_frame)
 
-        self.stop_all_button = ttk.Button(self, text="Stop All", command=stop_all)
-        self.stop_all_button.pack(pady=10)
-
-        self.save_button = ttk.Button(self, text="Save Plot", command=self.save_plot)
-        self.save_button.pack(pady=10)
-
+        # Bottom frame for matplotlib plot
+        self.bottom_frame = tk.Frame(self.paned_window)
         self.fig = Figure(figsize=(7, 5), dpi=100)
         self.ax = self.fig.add_subplot(111)
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-        self.canvas.get_tk_widget().pack()
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.bottom_frame)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.paned_window.add(self.bottom_frame)
 
+        # Control Buttons on the right side
+        self.buttons_frame = tk.Frame(self.top_frame)
+        self.start_button = ttk.Button(self.buttons_frame, text="Start Pinging", command=self.start)
+        self.start_button.pack(fill=tk.X, pady=2)
+        self.stop_all_button = ttk.Button(self.buttons_frame, text="Stop All", command=stop_all)
+        self.stop_all_button.pack(fill=tk.X, pady=2)
+        self.save_button = ttk.Button(self.buttons_frame, text="Save Plot", command=self.save_plot)
+        self.save_button.pack(fill=tk.X, pady=2)
+        self.buttons_frame.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Data storage and update plot
         self.response_times = {}
         self.update_plot()
-
+        
+    def insert_newline(self, event):
+        """Inserts a newline at the current cursor position."""
+        self.ip_text.insert(tk.INSERT, '\n')
+        return 'break'  # Prevents the default behavior of the Return key
+    
     def start(self):
-        ips = self.ip_entry.get().replace('\n', ',').split(',')
+        text_content = self.ip_text.get("1.0", "end-1c")
+        ips = text_content.replace('\n', ',').split(',')
         for ip in ips:
             ip = ip.strip()
-            if ip:
+            if ip:  # Ensure it's not an empty string
                 start_pinging(ip)
                 if ip not in self.response_times:
                     self.response_times[ip] = []
